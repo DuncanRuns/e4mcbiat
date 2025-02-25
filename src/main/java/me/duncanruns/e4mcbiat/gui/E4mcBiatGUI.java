@@ -20,6 +20,33 @@ public class E4mcBiatGUI extends JFrame {
     private String domain = "None";
     private final E4mcClient e4mcClient = new E4mcClient(this::onDomainAssigned, this::onBroadcast);
 
+    public E4mcBiatGUI() {
+        setContentPane(mainPanel);
+        setTitle("e4mc (but it's a tool)");
+        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                try {
+                    e4mcClient.close();
+                } catch (Exception ignored) {
+                }
+            }
+        });
+        pack();
+        revalidate();
+        setSize(275, getHeight());
+        setMinimumSize(this.getSize());
+        copyDomainButton.addActionListener(a -> {
+            try {
+                Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(domain), null);
+            } catch (Throwable t) {
+                JOptionPane.showMessageDialog(this, "Failed to copy to clipboard:\n" + ExceptionUtil.toDetailedString(t), "Failed to copy!", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+    }
+
     public static void main(String[] args) {
         FlatDarkLaf.setup();
         E4mcBiatGUI e4mcBiatGUI = new E4mcBiatGUI();
@@ -47,33 +74,6 @@ public class E4mcBiatGUI extends JFrame {
             SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(this, "Failed to run e4mc client:\n" + ExceptionUtil.toDetailedString(e), "Failed to run!", JOptionPane.ERROR_MESSAGE));
             dispose();
         }
-    }
-
-    public E4mcBiatGUI() {
-        setContentPane(mainPanel);
-        setTitle("e4mc (but it's a tool)");
-        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-
-        addWindowListener(new WindowAdapter() {
-            @Override
-            public void windowClosing(WindowEvent e) {
-                try {
-                    e4mcClient.close();
-                } catch (Exception ignored) {
-                }
-            }
-        });
-        pack();
-        revalidate();
-        setSize(275, getHeight());
-        setMinimumSize(this.getSize());
-        copyDomainButton.addActionListener(a -> {
-            try {
-                Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(domain), null);
-            } catch (Throwable t) {
-                JOptionPane.showMessageDialog(this, "Failed to copy to clipboard:\n" + ExceptionUtil.toDetailedString(t), "Failed to copy!", JOptionPane.ERROR_MESSAGE);
-            }
-        });
     }
 
     {

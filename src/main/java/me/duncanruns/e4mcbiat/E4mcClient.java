@@ -32,6 +32,41 @@ public class E4mcClient {
         this.onBroadcast = onBroadcast;
     }
 
+    private static void requestDomain(QuicStream stream) throws IOException {
+        JsonObject jsonObject = new JsonObject();
+        jsonObject.addProperty("kind", "request_domain_assignment");
+        sendQuiclimeControlString(stream.getOutputStream(), GSON.toJson(jsonObject));
+    }
+
+    private static Optional<RelayInfo> getBestRelay() {
+        try {
+            return Optional.ofNullable(GrabUtil.grabJson("https://broker.e4mc.link/getBestRelay", RelayInfo.class));
+        } catch (Exception e) {
+            return Optional.empty();
+        }
+    }
+
+    public static void sendQuiclimeControlString(OutputStream outputStream, String string) throws IOException {
+        byte[] bytes = string.getBytes(StandardCharsets.UTF_8);
+        if (bytes.length > Byte.MAX_VALUE) throw new IOException("String is too large!");
+        // Send 4 bytes containing length
+        outputStream.write((byte) bytes.length);
+        if (bytes.length == 0) return;
+        // Send bytes of that length
+        outputStream.write(bytes);
+        outputStream.flush();
+    }
+
+    public static String receiveQuiclimeControlString(InputStream inputStream) throws IOException {
+        byte[] bytes = SocketUtil.readSpecific(inputStream, 1);
+        if (bytes == null) return null;
+        int length = bytes[0];
+        if (length == 0) return "";
+        bytes = SocketUtil.readSpecific(inputStream, length);
+        if (bytes == null) return null;
+        return new String(bytes, StandardCharsets.UTF_8);
+    }
+
     public void run() throws IOException {
         try {
             Optional<RelayInfo> bestRelay = getBestRelay();
@@ -65,12 +100,6 @@ public class E4mcClient {
         }
     }
 
-    private static void requestDomain(QuicStream stream) throws IOException {
-        JsonObject jsonObject = new JsonObject();
-        jsonObject.addProperty("kind", "request_domain_assignment");
-        sendQuiclimeControlString(stream.getOutputStream(), GSON.toJson(jsonObject));
-    }
-
     private void receiveLoop(QuicStream stream) throws IOException {
         while (connection.isConnected() && !closed) {
             String s = receiveQuiclimeControlString(stream.getInputStream());
@@ -95,35 +124,6 @@ public class E4mcClient {
         closed = true;
         relays.forEach(MCRelay::close);
         connection.close();
-    }
-
-    private static Optional<RelayInfo> getBestRelay() {
-        try {
-            return Optional.ofNullable(GrabUtil.grabJson("https://broker.e4mc.link/getBestRelay", RelayInfo.class));
-        } catch (Exception e) {
-            return Optional.empty();
-        }
-    }
-
-    public static void sendQuiclimeControlString(OutputStream outputStream, String string) throws IOException {
-        byte[] bytes = string.getBytes(StandardCharsets.UTF_8);
-        if (bytes.length > Byte.MAX_VALUE) throw new IOException("String is too large!");
-        // Send 4 bytes containing length
-        outputStream.write((byte) bytes.length);
-        if (bytes.length == 0) return;
-        // Send bytes of that length
-        outputStream.write(bytes);
-        outputStream.flush();
-    }
-
-    public static String receiveQuiclimeControlString(InputStream inputStream) throws IOException {
-        byte[] bytes = SocketUtil.readSpecific(inputStream, 1);
-        if (bytes == null) return null;
-        int length = bytes[0];
-        if (length == 0) return "";
-        bytes = SocketUtil.readSpecific(inputStream, length);
-        if (bytes == null) return null;
-        return new String(bytes, StandardCharsets.UTF_8);
     }
 
     private static class RelayInfo {
