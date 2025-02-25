@@ -43,7 +43,7 @@ public class MCRelay {
         Thread receiverThread = new Thread(this::runReceiver, stream + "-receiver");
         receiverThread.setDaemon(true);
         receiverThread.start();
-        Thread senderThread = new Thread(this::runSender, stream + "-receiver");
+        Thread senderThread = new Thread(this::runSender, stream + "-sender");
         senderThread.setDaemon(true);
         senderThread.start();
     }
