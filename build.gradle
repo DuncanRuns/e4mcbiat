@@ -32,7 +32,7 @@ dependencies {
 shadowJar {
     manifest {
         // Thanks to answers from this: https://stackoverflow.com/questions/33020069/how-to-get-version-attribute-from-a-gradle-build-to-be-included-in-runtime-swing
-        attributes 'Main-Class': 'me.duncanruns.e4mcbiat.gui.E4mcBiatGUI',
+        attributes 'Main-Class': 'me.duncanruns.e4mcbiat.Main',
                 'Multi-Release': true,
                 'Implementation-Version': version
     }
