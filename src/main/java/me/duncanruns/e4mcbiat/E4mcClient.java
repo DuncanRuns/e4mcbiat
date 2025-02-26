@@ -120,7 +120,7 @@ public class E4mcClient {
     private void receiveLoop() throws IOException {
         while (connection.isConnected() && !closed) {
             String s = receiveQuiclimeControlString(controlStream.getInputStream());
-            if (s == null || s.isEmpty()) return; // Control stream closed
+            if (s == null || s.isEmpty()) throw new IOException("Control stream closed abruptly.");
             JsonObject jsonObject = GSON.fromJson(s, JsonObject.class);
             if (jsonObject == null) throw new IOException("Empty json object returned!");
             if (!jsonObject.has("kind")) throw new IOException("Invalid control message!");
