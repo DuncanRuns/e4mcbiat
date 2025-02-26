@@ -49,10 +49,8 @@ public class E4mcClient {
     public static void sendQuiclimeControlString(OutputStream outputStream, String string) throws IOException {
         byte[] bytes = string.getBytes(StandardCharsets.UTF_8);
         if (bytes.length > Byte.MAX_VALUE) throw new IOException("String is too large!");
-        // Send 4 bytes containing length
         outputStream.write((byte) bytes.length);
         if (bytes.length == 0) return;
-        // Send bytes of that length
         outputStream.write(bytes);
         outputStream.flush();
     }
