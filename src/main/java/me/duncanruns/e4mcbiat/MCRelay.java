@@ -17,17 +17,23 @@ public class MCRelay {
     private final OutputStream outputStream;
     private boolean closed = false;
     private Socket socket = null;
+    private final int port;
 
     public MCRelay(QuicStream stream, Consumer<MCRelay> onClose) {
+        this(stream, onClose, 25565);
+    }
+
+    public MCRelay(QuicStream stream, Consumer<MCRelay> onClose, int port) {
         this.onClose = onClose;
         this.stream = stream;
         inputStream = stream.getInputStream();
         outputStream = stream.getOutputStream();
+        this.port = port;
     }
 
     private boolean openSocket() {
         try {
-            socket = new Socket("localhost", 25565);
+            socket = new Socket("localhost", port);
             return true;
         } catch (IOException e) {
             close();

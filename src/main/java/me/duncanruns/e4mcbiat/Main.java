@@ -8,7 +8,8 @@ import java.util.Scanner;
 
 public class Main {
     public static void main(String[] args) throws IOException {
-        if (Arrays.stream(args).anyMatch(string -> string.toLowerCase().contains("nogui"))) {
+        Arrays.stream(args).filter(s -> s.startsWith("port=")).forEach(s -> E4mcClient.defaultPort = Integer.parseInt(s.split("=")[1]));
+        if (Arrays.stream(args).anyMatch(s -> s.toLowerCase().contains("nogui"))) {
             runWithNoGUI();
         } else {
             E4mcBiatGUI.main(args);

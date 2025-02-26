@@ -15,27 +15,27 @@ import java.time.Duration;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 
 // My notes on the quiclime/e4mc protocol: https://gist.github.com/DuncanRuns/09a7193a16f28c1a1587bc08303494ff
 public class E4mcClient {
+    public static int defaultPort = 25565;
+
     private static final Gson GSON = new Gson();
+
     private final Set<MCRelay> relays = ConcurrentHashMap.newKeySet();
     private final Consumer<String> onDomainAssigned;
     private final Consumer<String> onBroadcast;
     private QuicClientConnection connection;
+    private QuicStream controlStream;
     private boolean closed = false;
+    private final AtomicInteger mcPort = new AtomicInteger(defaultPort);
 
     public E4mcClient(Consumer<String> onDomainAssigned, Consumer<String> onBroadcast) {
         this.onDomainAssigned = onDomainAssigned;
         this.onBroadcast = onBroadcast;
-    }
-
-    private static void requestDomain(QuicStream stream) throws IOException {
-        JsonObject jsonObject = new JsonObject();
-        jsonObject.addProperty("kind", "request_domain_assignment");
-        sendQuiclimeControlString(stream.getOutputStream(), GSON.toJson(jsonObject));
     }
 
     private static Optional<RelayInfo> getBestRelay() {
@@ -67,43 +67,62 @@ public class E4mcClient {
         return new String(bytes, StandardCharsets.UTF_8);
     }
 
+    public void setMCPort(int port) {
+        this.mcPort.set(port);
+    }
+
+    public int getMcPort() {
+        return mcPort.get();
+    }
+
+    private void requestDomain() throws IOException {
+        JsonObject jsonObject = new JsonObject();
+        jsonObject.addProperty("kind", "request_domain_assignment");
+        sendQuiclimeControlString(controlStream.getOutputStream(), GSON.toJson(jsonObject));
+    }
+
     public void run() throws IOException {
         try {
-            Optional<RelayInfo> bestRelay = getBestRelay();
-            if (bestRelay.isEmpty()) {
-                throw new IOException("Failed to get best relay!");
-            }
-            RelayInfo relayInfo = bestRelay.get();
-
-            connection = QuicClientConnection.newBuilder()
-                    .host(relayInfo.host)
-                    .port(relayInfo.port)
-                    .applicationProtocol("quiclime")
-                    .maxOpenPeerInitiatedBidirectionalStreams(512)
-                    .maxIdleTimeout(Duration.ofSeconds(10))
-                    .build();
-            connection.connect();
-            QuicStream stream = connection.createStream(true);
-            connection.setPeerInitiatedStreamCallback(s -> {
-                MCRelay relay = new MCRelay(s, relays::remove);
-                relays.add(relay);
-                relay.start();
-            });
-
-            requestDomain(stream);
-
-            receiveLoop(stream);
+            runStartup();
+            receiveLoop();
         } catch (Exception e) {
             if (closed) return;
             close();
             throw e;
         }
+        closeConnection();
     }
 
-    private void receiveLoop(QuicStream stream) throws IOException {
+    private void runStartup() throws IOException {
+        Optional<RelayInfo> bestRelay = getBestRelay();
+        if (bestRelay.isEmpty()) {
+            throw new IOException("Failed to get best relay!");
+        }
+        RelayInfo relayInfo = bestRelay.get();
+
+        connection = QuicClientConnection.newBuilder()
+                .host(relayInfo.host)
+                .port(relayInfo.port)
+                .applicationProtocol("quiclime")
+                .maxOpenPeerInitiatedBidirectionalStreams(512)
+                .maxIdleTimeout(Duration.ofSeconds(10))
+                .build();
+        connection.connect();
+        if (closed) return;
+        controlStream = connection.createStream(true);
+        connection.setPeerInitiatedStreamCallback(s -> {
+            MCRelay relay = new MCRelay(s, relays::remove, mcPort.get());
+            relays.add(relay);
+            relay.start();
+        });
+        if (closed) return;
+        requestDomain();
+    }
+
+    private void receiveLoop() throws IOException {
         while (connection.isConnected() && !closed) {
-            String s = receiveQuiclimeControlString(stream.getInputStream());
-            if (s == null) connection.close();
+            String s = receiveQuiclimeControlString(controlStream.getInputStream());
+            if (s == null || s.isEmpty()) return; // Control stream closed
             JsonObject jsonObject = GSON.fromJson(s, JsonObject.class);
             if (jsonObject == null) throw new IOException("Empty json object returned!");
             if (!jsonObject.has("kind")) throw new IOException("Invalid control message!");
@@ -119,11 +138,18 @@ public class E4mcClient {
         }
     }
 
-    public void close() {
+    public synchronized void close() {
         if (closed) return;
         closed = true;
         relays.forEach(MCRelay::close);
-        connection.close();
+        closeConnection();
+    }
+
+    private void closeConnection() {
+        try {
+            connection.close();
+        } catch (Exception ignored) {
+        }
     }
 
     private static class RelayInfo {

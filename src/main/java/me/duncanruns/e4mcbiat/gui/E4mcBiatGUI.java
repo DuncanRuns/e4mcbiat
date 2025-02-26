@@ -12,11 +12,13 @@ import java.awt.datatransfer.StringSelection;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
+import java.util.Optional;
 
 public class E4mcBiatGUI extends JFrame {
     private JPanel mainPanel;
     private JButton copyDomainButton;
     private JLabel label;
+    private JButton setPortButton;
     private String domain = "None";
     private final E4mcClient e4mcClient = new E4mcClient(this::onDomainAssigned, this::onBroadcast);
 
@@ -34,17 +36,12 @@ public class E4mcBiatGUI extends JFrame {
                 }
             }
         });
+        setupButtons();
+
         pack();
         revalidate();
         setSize(275, getHeight());
-        setMinimumSize(this.getSize());
-        copyDomainButton.addActionListener(a -> {
-            try {
-                Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(domain), null);
-            } catch (Throwable t) {
-                JOptionPane.showMessageDialog(this, "Failed to copy to clipboard:\n" + ExceptionUtil.toDetailedString(t), "Failed to copy!", JOptionPane.ERROR_MESSAGE);
-            }
-        });
+        setResizable(false);
     }
 
     public static void main(String[] args) {
@@ -52,6 +49,34 @@ public class E4mcBiatGUI extends JFrame {
         E4mcBiatGUI e4mcBiatGUI = new E4mcBiatGUI();
         e4mcBiatGUI.setVisible(true);
         e4mcBiatGUI.runClient();
+    }
+
+    private void setupButtons() {
+        copyDomainButton.addActionListener(a -> {
+            try {
+                Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(domain), null);
+            } catch (Throwable t) {
+                JOptionPane.showMessageDialog(this, "Failed to copy to clipboard:\n" + ExceptionUtil.toDetailedString(t), "Failed to copy!", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+        setPortButton.addActionListener(a -> {
+            String errorMessage = "";
+            while (true) {
+                String input = Optional.ofNullable(JOptionPane.showInputDialog(this, errorMessage + "Enter your Minecraft server's port:", "e4mcbiat: change port", JOptionPane.PLAIN_MESSAGE, null, null, Integer.toString(e4mcClient.getMcPort()))).map(Object::toString).orElse(null);
+                if (input == null || input.trim().isEmpty()) return;
+                try {
+                    int port = Integer.parseInt(input.trim());
+                    if (port >= 1 && port <= 65535) {
+                        e4mcClient.setMCPort(port);
+                        return;
+                    } else {
+                        errorMessage = "Port must be between 1 and 65535!\n";
+                    }
+                } catch (NumberFormatException ex) {
+                    errorMessage = "Invalid number format. Please enter a valid port.\n";
+                }
+            }
+        });
     }
 
     private void onBroadcast(String string) {
@@ -92,14 +117,17 @@ public class E4mcBiatGUI extends JFrame {
      */
     private void $$$setupUI$$$() {
         mainPanel = new JPanel();
-        mainPanel.setLayout(new GridLayoutManager(2, 1, new Insets(10, 10, 10, 10), -1, -1));
+        mainPanel.setLayout(new GridLayoutManager(3, 1, new Insets(10, 10, 10, 10), -1, -1));
         label = new JLabel();
         label.setText("Starting...");
-        mainPanel.add(label, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_SOUTH, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        mainPanel.add(label, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        setPortButton = new JButton();
+        setPortButton.setText("Set MC Port");
+        mainPanel.add(setPortButton, new GridConstraints(2, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         copyDomainButton = new JButton();
         copyDomainButton.setEnabled(false);
         copyDomainButton.setText("Copy IP");
-        mainPanel.add(copyDomainButton, new GridConstraints(1, 0, 1, 1, GridConstraints.ANCHOR_NORTH, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        mainPanel.add(copyDomainButton, new GridConstraints(1, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
     }
 
     /**
