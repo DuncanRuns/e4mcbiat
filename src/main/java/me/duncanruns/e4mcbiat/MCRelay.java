@@ -51,7 +51,6 @@ public class MCRelay {
     }
 
     private void runReceiver() {
-        System.out.println("Opened MCRelay receiver for " + stream);
         try {
             transferLoop(stream.getInputStream(), socket.getOutputStream());
         } catch (IOException e) {
@@ -60,7 +59,6 @@ public class MCRelay {
     }
 
     private void runSender() {
-        System.out.println("Opened MCRelay sender for " + stream);
         try {
             transferLoop(socket.getInputStream(), stream.getOutputStream());
         } catch (IOException e) {
@@ -79,7 +77,6 @@ public class MCRelay {
 
     public synchronized void close() {
         if (closed) return;
-        System.out.println("Closing MCRelay for " + stream);
         closed = true;
         carelesslyClose(stream.getInputStream());
         carelesslyClose(stream.getOutputStream());
